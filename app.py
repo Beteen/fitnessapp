@@ -758,10 +758,9 @@ with tabs[3]:
                 yaxis="y2",
             ))
 
-            today_str = pd.Timestamp(date.today())
-            fig_load.add_vline(x=today_str, line_dash="dash", line_color="orange",
-                               annotation_text="Today")
-            fig_load.add_vline(x=pd.Timestamp(RACE_DATE), line_dash="dash",
+            fig_load.add_vline(x=date.today().isoformat(), line_dash="dash",
+                               line_color="orange", annotation_text="Today")
+            fig_load.add_vline(x=RACE_DATE.isoformat(), line_dash="dash",
                                line_color="rgba(220,50,50,0.7)", annotation_text="Race")
             fig_load.add_hline(y=0, line_color="rgba(100,100,100,0.3)", yref="y2")
 
