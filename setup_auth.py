@@ -6,20 +6,20 @@ Run this once before launching the dashboard.
 If you sign in to Garmin Connect via Google:
   1. Go to connect.garmin.com
   2. Account Settings → Security → Password → set a Garmin-native password
-  3. Then run this script with that email and your new password
+  3. Then run this script with that email and your new Garmin password
 
-Tokens are saved to ~/.garth and reused automatically by the dashboard.
+Tokens are saved to ~/.garminconnect and reused automatically by the dashboard.
 """
 import getpass
 import sys
 from pathlib import Path
 
-GARTH_DIR = Path.home() / ".garth"
+TOKEN_DIR = Path.home() / ".garminconnect"
 
 
 def main():
     try:
-        import garth
+        from garminconnect import Garmin
     except ImportError:
         print("Run `pip install -r requirements.txt` first.")
         sys.exit(1)
@@ -28,7 +28,7 @@ def main():
     print("=" * 42)
     print()
     print("Note for Google Sign-In users:")
-    print("  You need a separate Garmin password.")
+    print("  You need a separate Garmin-native password.")
     print("  Set one at: connect.garmin.com → Account Settings → Security")
     print()
 
@@ -37,9 +37,10 @@ def main():
 
     print("\nAuthenticating with Garmin Connect…")
     try:
-        garth.login(email, password)
-        garth.save(str(GARTH_DIR))
-        print(f"\nSuccess. Tokens saved to {GARTH_DIR}")
+        TOKEN_DIR.mkdir(exist_ok=True)
+        client = Garmin(email=email, password=password)
+        client.login(tokenstore=str(TOKEN_DIR))
+        print(f"\nSuccess. Tokens saved to {TOKEN_DIR}")
         print("Now launch the dashboard:  streamlit run app.py")
     except Exception as exc:
         print(f"\nAuthentication failed: {exc}")

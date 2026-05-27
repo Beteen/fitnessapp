@@ -6,15 +6,15 @@ from typing import Optional
 
 from database import get_conn, init_db
 
-GARTH_TOKEN_DIR = Path.home() / ".garth"
+TOKEN_DIR = Path.home() / ".garminconnect"
 
 
 def _get_client():
-    """Load Garmin client from saved garth tokens."""
+    """Load Garmin client from saved tokens."""
     try:
         from garminconnect import Garmin
-        client = Garmin(tokenstore=str(GARTH_TOKEN_DIR))
-        client.login()
+        client = Garmin()
+        client.login(tokenstore=str(TOKEN_DIR))
         return client
     except Exception as exc:
         raise RuntimeError(
