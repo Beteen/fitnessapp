@@ -1,0 +1,7 @@
+streamlit>=1.32.0
+garminconnect>=0.2.19
+garth>=0.4.46
+plotly>=5.20.0
+pandas>=2.2.0
+numpy>=1.26.0
+python-dotenv>=1.0.0
