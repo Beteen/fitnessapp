@@ -10,15 +10,15 @@ def init_db():
     with get_conn() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS activities (
-                activity_id     TEXT PRIMARY KEY,
-                start_time      TEXT NOT NULL,
-                activity_type   TEXT,
-                distance_km     REAL,
-                duration_seconds INTEGER,
-                avg_pace_sec_per_km REAL,
-                avg_hr          INTEGER,
-                max_hr          INTEGER,
-                calories        INTEGER
+                activity_id          TEXT PRIMARY KEY,
+                start_time           TEXT NOT NULL,
+                activity_type        TEXT,
+                distance_km          REAL,
+                duration_seconds     INTEGER,
+                avg_pace_sec_per_km  REAL,
+                avg_hr               INTEGER,
+                max_hr               INTEGER,
+                calories             INTEGER
             );
 
             CREATE TABLE IF NOT EXISTS daily_hr (
@@ -27,9 +27,45 @@ def init_db():
             );
 
             CREATE TABLE IF NOT EXISTS sleep (
-                date            TEXT PRIMARY KEY,
-                sleep_score     INTEGER,
+                date             TEXT PRIMARY KEY,
+                sleep_score      INTEGER,
                 duration_seconds INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS vo2max (
+                date         TEXT PRIMARY KEY,
+                vo2max       REAL,
+                fitness_age  INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS body_battery (
+                date          TEXT PRIMARY KEY,
+                morning_value INTEGER,
+                evening_value INTEGER,
+                charged       INTEGER,
+                drained       INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS stress (
+                date              TEXT PRIMARY KEY,
+                avg_stress        INTEGER,
+                max_stress        INTEGER,
+                rest_stress_mins  INTEGER,
+                low_stress_mins   INTEGER,
+                med_stress_mins   INTEGER,
+                high_stress_mins  INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS hrv (
+                date          TEXT PRIMARY KEY,
+                weekly_avg    REAL,
+                last_night    REAL,
+                five_min_high REAL
+            );
+
+            CREATE TABLE IF NOT EXISTS user_profile (
+                key   TEXT PRIMARY KEY,
+                value TEXT
             );
 
             CREATE TABLE IF NOT EXISTS sync_log (
