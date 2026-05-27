@@ -23,10 +23,11 @@ def _get_client():
         ) from exc
 
 
-def sync(days: int = 120) -> int:
+def sync(days: int = 120, client=None) -> int:
     """Sync the last N days from Garmin Connect. Returns number of run activities stored."""
     init_db()
-    client = _get_client()
+    if client is None:
+        client = _get_client()
 
     end = date.today()
     start = end - timedelta(days=days)

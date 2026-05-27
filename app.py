@@ -61,29 +61,41 @@ CONFIG_PATH = Path.home() / ".fitnessapp" / "config.json"
 TOKEN_DIR = Path.home() / ".garminconnect"
 
 
-def _is_authenticated() -> bool:
-    return TOKEN_DIR.exists() and any(TOKEN_DIR.iterdir())
+def _get_garmin_client():
+    """
+    Return an authenticated Garmin client, trying in order:
+    1. Already stored in session state (fastest, works on Streamlit Cloud)
+    2. Streamlit secrets GARMIN_EMAIL / GARMIN_PASSWORD (Streamlit Cloud config)
+    3. Local token files in TOKEN_DIR (local development)
+    """
+    if st.session_state.get("garmin_client"):
+        return st.session_state["garmin_client"]
 
-
-def _garmin_login(email: str, password: str):
-    """Attempt login. Returns (success, needs_mfa, client, error_msg)."""
     from garminconnect import Garmin
-    TOKEN_DIR.mkdir(exist_ok=True)
-    client = Garmin(email=email, password=password, return_on_mfa=True)
-    status, _ = client.login(tokenstore=str(TOKEN_DIR))
-    if status == "needs_mfa":
-        return False, True, client, None
-    return True, False, None, None
 
-
-def _garmin_mfa(client, code: str):
-    """Complete MFA and save tokens. Returns (success, error_msg)."""
+    # Streamlit secrets
     try:
-        client.resume_login(mfa_code=code)
-        client.client.dump(str(TOKEN_DIR))
-        return True, None
-    except Exception as exc:
-        return False, str(exc)
+        email = st.secrets.get("GARMIN_EMAIL", "")
+        password = st.secrets.get("GARMIN_PASSWORD", "")
+        if email and password:
+            client = Garmin(email=email, password=password)
+            client.login()
+            st.session_state["garmin_client"] = client
+            return client
+    except Exception:
+        pass
+
+    # Local token files
+    try:
+        if TOKEN_DIR.exists() and any(TOKEN_DIR.iterdir()):
+            client = Garmin()
+            client.login(tokenstore=str(TOKEN_DIR))
+            st.session_state["garmin_client"] = client
+            return client
+    except Exception:
+        pass
+
+    return None
 
 
 # ── Config helpers ────────────────────────────────────────────────────────────
@@ -191,13 +203,15 @@ with st.sidebar:
     st.divider()
 
     # ── Garmin Connect auth + sync ────────────────────────────────────────────
-    if _is_authenticated():
+    garmin_client = _get_garmin_client()
+
+    if garmin_client:
         sync_days = st.slider("Days to sync", 30, 180, 120, 30)
         if st.button("Sync Garmin Data", use_container_width=True, type="primary"):
             with st.spinner("Syncing Garmin Connect…"):
                 try:
                     from garmin_sync import sync
-                    count = sync(days=sync_days)
+                    count = sync(days=sync_days, client=garmin_client)
                     st.success(f"Synced {count} run activities")
                     st.cache_data.clear()
                     st.rerun()
@@ -209,39 +223,40 @@ with st.sidebar:
         if last:
             st.caption(f"Last sync: {datetime.fromisoformat(last).strftime('%b %d, %H:%M')}")
 
-        if st.button("Log out of Garmin", use_container_width=True):
+        if st.button("Log out", use_container_width=True):
+            st.session_state.pop("garmin_client", None)
             import shutil
             shutil.rmtree(TOKEN_DIR, ignore_errors=True)
             st.rerun()
 
     else:
-        # Login form — shown until tokens are saved
         st.markdown("**Connect Garmin Account**")
 
-        # MFA flow uses session state to hold the half-authed client
         if st.session_state.get("garmin_mfa_pending"):
-            st.info("Check your authenticator app or email for a code.")
-            mfa_code = st.text_input("MFA / verification code", max_chars=10)
-            col_mfa1, col_mfa2 = st.columns(2)
-            if col_mfa1.button("Verify", use_container_width=True, type="primary"):
-                ok, err = _garmin_mfa(st.session_state["garmin_client"], mfa_code)
-                if ok:
+            st.info("Enter the code from your Garmin / authenticator email.")
+            mfa_code = st.text_input("Verification code", max_chars=10)
+            c1, c2 = st.columns(2)
+            if c1.button("Verify", use_container_width=True, type="primary"):
+                try:
+                    pending = st.session_state["garmin_client_pending"]
+                    pending.resume_login(mfa_code=mfa_code)
+                    st.session_state["garmin_client"] = pending
                     st.session_state.pop("garmin_mfa_pending", None)
-                    st.session_state.pop("garmin_client", None)
-                    st.success("Connected!")
+                    st.session_state.pop("garmin_client_pending", None)
                     st.cache_data.clear()
                     st.rerun()
-                else:
-                    st.error(f"MFA failed: {err}")
-            if col_mfa2.button("Cancel", use_container_width=True):
+                except Exception as exc:
+                    st.error(f"Code incorrect: {exc}")
+            if c2.button("Cancel", use_container_width=True):
                 st.session_state.pop("garmin_mfa_pending", None)
-                st.session_state.pop("garmin_client", None)
+                st.session_state.pop("garmin_client_pending", None)
                 st.rerun()
+
         else:
             email = st.text_input("Garmin email")
             password = st.text_input("Garmin password", type="password")
             st.caption(
-                "Use Google Sign-In? First add a Garmin password at  \n"
+                "Using Google Sign-In? Set a Garmin password first:  \n"
                 "connect.garmin.com → Account → Security → Password"
             )
             if st.button("Connect", use_container_width=True, type="primary"):
@@ -250,17 +265,17 @@ with st.sidebar:
                 else:
                     with st.spinner("Connecting…"):
                         try:
-                            ok, needs_mfa, client, err = _garmin_login(email, password)
-                            if needs_mfa:
+                            from garminconnect import Garmin
+                            client = Garmin(email=email, password=password, return_on_mfa=True)
+                            status, _ = client.login()
+                            if status == "needs_mfa":
                                 st.session_state["garmin_mfa_pending"] = True
-                                st.session_state["garmin_client"] = client
-                                st.rerun()
-                            elif ok:
-                                st.success("Connected!")
-                                st.cache_data.clear()
+                                st.session_state["garmin_client_pending"] = client
                                 st.rerun()
                             else:
-                                st.error(err or "Login failed.")
+                                st.session_state["garmin_client"] = client
+                                st.cache_data.clear()
+                                st.rerun()
                         except Exception as exc:
                             st.error(f"Login failed: {exc}")
 
