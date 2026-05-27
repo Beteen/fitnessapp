@@ -758,10 +758,18 @@ with tabs[3]:
                 yaxis="y2",
             ))
 
-            fig_load.add_vline(x=date.today().isoformat(), line_dash="dash",
-                               line_color="orange", annotation_text="Today")
-            fig_load.add_vline(x=RACE_DATE.isoformat(), line_dash="dash",
-                               line_color="rgba(220,50,50,0.7)", annotation_text="Race")
+            for x_val, color, label in [
+                (date.today().isoformat(), "orange", "Today"),
+                (RACE_DATE.isoformat(), "rgba(220,50,50,0.7)", "Race"),
+            ]:
+                fig_load.add_shape(
+                    type="line", x0=x_val, x1=x_val, y0=0, y1=1, yref="paper",
+                    line=dict(dash="dash", color=color, width=1),
+                )
+                fig_load.add_annotation(
+                    x=x_val, y=1.02, yref="paper", text=label,
+                    showarrow=False, font=dict(color=color),
+                )
             fig_load.add_hline(y=0, line_color="rgba(100,100,100,0.3)", yref="y2")
 
             fig_load.update_layout(
